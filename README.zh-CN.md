@@ -2,7 +2,7 @@
 
 懒得写，自动做（Code while you chill）。
 
-[English README](README.md)
+[English](README.md) | 简体中文
 
 ## 概述
 
@@ -75,4 +75,3 @@ PandarCoder/
 
 - 许可证：MIT（见 LICENSE）
 - 欢迎贡献：参考 AGENTS.md 与 tasks.md 获取贡献与路线图信息
-
