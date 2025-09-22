@@ -53,3 +53,35 @@ curl -X POST http://localhost:8000/api/v1/tasks \
 ## RBAC & Safety
 - 权限见 `app/scripts/init_rbac.py`：`task:*`、`notification:*` 控制操作。
 - 一律在隔离环境运行代理 CLI，并基于 allowlist/denylist 收敛指令面。
+
+## Open Source Readiness
+- License: add `LICENSE` (MIT) and reference in README; include `NOTICE` if needed.
+- Community: add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant), `SECURITY.md` (vuln report flow), `GOVERNANCE.md` (轻量治理).
+- Templates: `.github/ISSUE_TEMPLATE/*.yml` (bug, feature), `PULL_REQUEST_TEMPLATE.md`, `CODEOWNERS`.
+- Releases: adopt SemVer, generate `CHANGELOG.md` via conventional commits; tag `v0.x`.
+- CI: run backend `pytest` + coverage, lint (flake8/black/isort), frontend ESLint/TypeCheck/Build; verify `tasks.json` locales (见下文 i18n 校验)。
+
+## Internationalization (i18n)
+- API language strategy
+  - Keep backend error payloads language‑agnostic (stable `error.code`, `details`), translate on FE; optionally honor `Accept-Language` or `?lang=` for simple messages.
+  - Ensure all timestamps are UTC ISO‑8601; localize at client.
+- Frontend i18n (Next.js App Router)
+  - Add locales: `en`, `zh` in `next.config.ts` i18n; default `en`.
+  - Store dictionaries at `frontend/src/locales/{en,zh}.json` and use a `t(key, params)` util.
+  - Externalize all UI strings; avoid hardcoded text in components/pages.
+  - Support RTL (dir="rtl") switch; test truncation and wrapping.
+- Docs i18n
+  - Mirror docs to `docs/en` and `docs/zh` (or adopt Docusaurus later); keep tasks/AGENTS in English first with Chinese translation.
+- Validation & tooling
+  - Add script to check missing/unused keys across `src/locales/*.json`.
+  - Optional: integrate Crowdin/POEditor sync via GitHub Action.
+
+Example FE usage
+```ts
+// src/lib/i18n.ts
+import en from "@/locales/en.json";
+import zh from "@/locales/zh.json";
+export const dict = { en, zh } as const;
+export const t = (locale: keyof typeof dict, key: string, vars: Record<string,string|number> = {}) =>
+  (dict[locale][key] || key).replace(/\{(\w+)\}/g, (_,k)=> String(vars[k] ?? ""));
+```
