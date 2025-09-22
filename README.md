@@ -161,7 +161,7 @@ alembic upgrade head
 
 Code while you chill. Unattended multi‑agent coding with lightweight approvals.
 
-[简体中文 README](README.zh-CN.md)
+[简体中文 README](docs/README.zh-CN.md)
 
 ## Overview
 
