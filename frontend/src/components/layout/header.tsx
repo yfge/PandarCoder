@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Terminal, Menu, User, Settings, LogOut, LogIn, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/providers/i18n-provider'
 import { useAuthStore } from '@/store/auth-store'
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ export function Header({ onToggleSidebar, className }: HeaderProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, isAuthenticated, logout } = useAuthStore()
+  const { locale, setLocale } = useI18n()
 
   // 导航菜单项
   const navigationItems = [
@@ -68,7 +70,7 @@ export function Header({ onToggleSidebar, className }: HeaderProps) {
           <Link href="/" className="flex items-center space-x-2">
             <Terminal className="h-6 w-6 text-primary" />
             <span className="font-bold text-xl hidden sm:inline-block">
-              Claude Web
+              Pandar Coder
             </span>
           </Link>
 
@@ -99,6 +101,15 @@ export function Header({ onToggleSidebar, className }: HeaderProps) {
 
         {/* 右侧 - 用户菜单 */}
         <div className="flex items-center space-x-2">
+          {/* 语言切换 */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setLocale(locale === 'en' ? 'zh' : 'en')}
+            aria-label="Toggle language"
+          >
+            {locale === 'en' ? '中文' : 'EN'}
+          </Button>
           {/* 快捷操作按钮 - 仅在已登录时显示 */}
           {isAuthenticated && (
             <Button variant="ghost" size="sm" className="hidden md:flex">
