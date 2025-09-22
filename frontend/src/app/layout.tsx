@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AppProvider, ThemeProvider } from "@/providers";
+import { AppProvider, ThemeProvider, I18nProvider } from "@/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,9 +24,11 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body className={`antialiased`} suppressHydrationWarning>
         <ThemeProvider>
-          <AppProvider>
-            {children}
-          </AppProvider>
+          <I18nProvider>
+            <AppProvider>
+              {children}
+            </AppProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

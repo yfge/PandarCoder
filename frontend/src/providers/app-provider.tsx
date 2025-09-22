@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react'
 import { useAppStore, useAuthStore, useUIStore } from '@/store'
+import { useI18n } from '@/providers/i18n-provider'
 
 interface AppProviderProps {
   children: React.ReactNode
@@ -14,6 +15,7 @@ export function AppProvider({ children }: AppProviderProps) {
   const { initialize, updateLastActivity } = useAppStore()
   const { checkAuthStatus } = useAuthStore()
   const { addNotification, setGlobalLoading } = useUIStore()
+  const { t } = useI18n()
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -28,16 +30,16 @@ export function AppProvider({ children }: AppProviderProps) {
         
         addNotification({
           type: 'success',
-          title: '应用初始化成功',
-          message: '欢迎使用 Claude Web',
+          title: t('app.init.success.title'),
+          message: t('app.init.success.message'),
           duration: 3000
         })
       } catch (error) {
         console.error('App initialization failed:', error)
         addNotification({
           type: 'warning',
-          title: '初始化部分失败',
-          message: '某些功能可能不可用',
+          title: t('app.init.partial_fail.title'),
+          message: t('app.init.partial_fail.message'),
           duration: 5000
         })
       } finally {

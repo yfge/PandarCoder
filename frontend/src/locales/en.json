@@ -1,0 +1,14 @@
+{
+  "app.init.success.title": "App initialized",
+  "app.init.success.message": "Welcome to Pandar Coder",
+  "app.init.partial_fail.title": "Initialized with warnings",
+  "app.init.partial_fail.message": "Some features may be unavailable",
+
+  "auth.login.success": "Login successful",
+  "auth.login.fail": "Login failed",
+  "auth.register.success": "Registration successful",
+  "auth.register.fail": "Registration failed",
+  "auth.logout.success": "Logged out",
+  "auth.logout.fail": "Logout failed"
+}
+

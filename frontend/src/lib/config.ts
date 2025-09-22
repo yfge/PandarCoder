@@ -21,7 +21,7 @@ export const isTest = process.env.NODE_ENV === 'test'
 // 应用配置
 export const config = {
   // 基础信息
-  APP_NAME: 'Claude Web',
+  APP_NAME: 'Pandar Coder',
   APP_VERSION: '0.1.0',
   APP_DESCRIPTION: 'Remote Claude CLI Control Platform',
   
@@ -39,12 +39,12 @@ export const config = {
   PORT: parseInt(getEnvVar('PORT', '3100'), 10),
   
   // 认证配置
-  TOKEN_STORAGE_KEY: 'claude_web_token',
-  REFRESH_TOKEN_STORAGE_KEY: 'claude_web_refresh_token',
-  USER_STORAGE_KEY: 'claude_web_user',
+  TOKEN_STORAGE_KEY: 'pandar_coder_token',
+  REFRESH_TOKEN_STORAGE_KEY: 'pandar_coder_refresh_token',
+  USER_STORAGE_KEY: 'pandar_coder_user',
   
   // 本地存储配置
-  STORAGE_PREFIX: 'claude_web_',
+  STORAGE_PREFIX: 'pandar_coder_',
   
   // UI配置
   DEFAULT_THEME: 'light' as 'light' | 'dark' | 'system',
