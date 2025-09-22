@@ -13,6 +13,7 @@ import logging
 from app.models.task import Task, TaskStatus
 from app.models.project import Project
 from app.models.user import User
+from app.core.sandbox import evaluate_runtime_policy, is_command_allowed
 from app.schemas.task import (
     CreateTaskRequest, UpdateTaskRequest, TaskListParams,
     TaskResponse, TaskListResponse, TaskStats, TaskAction,
@@ -46,6 +47,14 @@ class TaskService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="项目不存在或无权限访问"
+            )
+
+        # 额外的沙盒策略检查（更细粒度的拦截）
+        allowed, reason = is_command_allowed(task_data.command)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"命令被沙盒策略拒绝: {reason}"
             )
 
         # 创建任务
@@ -219,6 +228,16 @@ class TaskService:
                 task.task_metadata.update(update_data.metadata)
             else:
                 task.task_metadata = update_data.metadata
+
+        # 如更新了 command 或 metadata，则再次执行沙盒策略检查
+        if update_data.dict(exclude_unset=True).get("metadata") is not None or \
+           update_data.dict(exclude_unset=True).get("command") is not None:
+            allowed, reason = is_command_allowed(task.command)
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"命令被沙盒策略拒绝: {reason}"
+                )
 
         task.updated_at = datetime.utcnow()
         await db.commit()

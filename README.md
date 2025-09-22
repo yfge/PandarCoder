@@ -55,6 +55,32 @@ PandarCoder/
 
 Key APIs: `POST /api/v1/tasks` (create) • `POST /api/v1/tasks/{id}/action` (start/cancel/confirm/retry) • `POST /api/v1/tasks/{id}/confirm`
 
+## Sandbox
+
+- Enforced by default: denies shell operators (&&, |, ;, >, <, backticks, $()), and common dangerous patterns (sudo, rm -rf, chmod 777, dd if=, mkfs, docker, kubectl, ssh/scp, curl | sh).
+- Allowed root commands only: defaults to `codex`, `claude`, `gemini`. Configure via `.env` settings.
+- Decisions: allow | gate (WAITING_CONFIRMATION) | block (FAILED). Violations in `manual` or `auto_with_gates` policy are gated; otherwise blocked.
+- Metadata: `sandbox.mode` can be `strict` (default) or `permissive`. Reason is recorded as `task_metadata.last_block_reason` when gated/blocked.
+
+Environment
+- `SANDBOX_ENFORCED=true` (default)
+- `SANDBOX_ALLOWED_ROOT_CMDS=["codex","claude","gemini"]`
+- `APPROVALS_ENABLED=false` (default: never ask for confirmation; gates ignored)
+
+Example create
+```
+{
+  "name": "Nightly audit",
+  "command": "codex audit --fix --create-pr",
+  "project_id": 1,
+  "metadata": {
+    "approval_policy": "auto_with_gates",
+    "gates": ["git_push_protected"],
+    "sandbox": {"mode": "strict"}
+  }
+}
+```
+
 ## Scripts
 
 - `./scripts/setup.sh` one‑time init

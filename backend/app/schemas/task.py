@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 from pydantic import BaseModel, Field, validator
 from enum import Enum
+from app.core.sandbox import is_command_allowed
 
 
 class TaskStatus(str, Enum):
@@ -42,12 +43,10 @@ class TaskBase(BaseModel):
     def validate_command(cls, v):
         if not v.strip():
             raise ValueError('命令不能为空')
-        # 基本的命令安全检查
-        dangerous_commands = ['rm -rf', 'sudo', 'su', 'chmod 777', 'dd if=', 'mkfs', 'fdisk']
-        command_lower = v.lower()
-        for dangerous in dangerous_commands:
-            if dangerous in command_lower:
-                raise ValueError(f'命令包含危险操作: {dangerous}')
+        allowed, reason = is_command_allowed(v)
+        if not allowed:
+            # 仅在创建阶段会阻止；更新阶段仍沿用此校验
+            raise ValueError(f'命令不符合沙盒策略: {reason}')
         return v.strip()
 
 

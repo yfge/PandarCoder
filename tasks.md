@@ -50,6 +50,21 @@ curl -X POST http://localhost:8000/api/v1/tasks \
   - 触发 gate 时置 `waiting_confirmation` 并发通知；`/confirm` 后继续。
   - 结束时调用 `complete_task(success, output, error, exit_code, duration)`。
 
+## Sandbox（沙盒）
+- 默认启用：禁止 shell 运算符（`&&`、`|`、`;`、重定向、反引号、`$()`）与危险片段（`sudo`、`rm -rf`、`chmod 777`、`dd if=`、`mkfs`、`docker`、`kubectl`、`ssh/scp`、`curl | sh`）。
+- 仅允许的根命令：默认仅 `codex`、`claude`、`gemini`，可通过环境变量配置。
+- 决策：`allow` | `gate`（置 `waiting_confirmation`）| `block`（直接 `failed`）。当 `approval_policy` 为 `manual` 或 `auto_with_gates` 时违规将被 gate；否则直接 block。
+- 元数据：`sandbox.mode` 可为 `strict`（默认）或 `permissive`。当 gate/block 时，原因写入 `task_metadata.last_block_reason`。
+
+全局审批开关
+- `APPROVALS_ENABLED=false`（默认）时，系统不会进入人工确认，所有 gate 情况将直接 block；元数据 `gates` 也将被忽略，任务直跑。
+- `APPROVALS_ENABLED=true` 时，结合 `approval_policy` 与 `gates` 启用人工确认。
+
+环境变量
+- `SANDBOX_ENFORCED=true`
+- `SANDBOX_ALLOWED_ROOT_CMDS=["codex","claude","gemini"]`
+- `APPROVALS_ENABLED=false`
+
 ## RBAC & Safety
 - 权限见 `app/scripts/init_rbac.py`：`task:*`、`notification:*` 控制操作。
 - 一律在隔离环境运行代理 CLI，并基于 allowlist/denylist 收敛指令面。

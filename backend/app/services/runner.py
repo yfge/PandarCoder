@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.database import get_db_session
 from app.models.task import Task, TaskStatus
+from app.core.sandbox import evaluate_runtime_policy
 
 
 logger = logging.getLogger(__name__)
@@ -83,8 +84,37 @@ class TaskRunner:
         approval_policy = (metadata.get("approval_policy") or "auto").lower()
         gates = metadata.get("gates") or []
 
+        # Evaluate sandbox policy before starting
+        decision, reason = evaluate_runtime_policy(task.command, metadata)
+        if decision == "gate":
+            task.status = TaskStatus.WAITING_CONFIRMATION
+            # 记录触发原因
+            meta = dict(metadata)
+            meta.setdefault("gates", [])
+            if "sandbox_violation" not in meta["gates"]:
+                meta["gates"].append("sandbox_violation")
+            meta["last_block_reason"] = reason
+            task.task_metadata = meta
+            task.updated_at = datetime.utcnow()
+            await db.commit()
+            logger.info("Task %s gated by sandbox: %s", task.id, reason)
+            return
+        elif decision == "block":
+            finished = datetime.utcnow()
+            task.status = TaskStatus.FAILED
+            task.completed_at = finished
+            task.error = f"Blocked by sandbox: {reason}"
+            task.exit_code = 1
+            task.updated_at = finished
+            await db.commit()
+            logger.warning("Task %s blocked by sandbox: %s", task.id, reason)
+            return
+
+        # If approvals disabled globally, ignore gates entirely
+        if not getattr(settings, "APPROVALS_ENABLED", True):
+            pass
         # If policy requires gate and gates exist, pause for confirmation
-        if approval_policy in ("manual", "auto_with_gates") and gates:
+        elif approval_policy in ("manual", "auto_with_gates") and gates:
             task.status = TaskStatus.WAITING_CONFIRMATION
             task.updated_at = datetime.utcnow()
             await db.commit()

@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     # Runner
     RUNNER_ENABLED: bool = False
     RUNNER_POLL_INTERVAL: int = 2  # seconds
+
+    # Sandbox
+    SANDBOX_ENFORCED: bool = True
+    SANDBOX_ALLOWED_ROOT_CMDS: list[str] = ["codex", "claude", "gemini"]
+
+    # Approvals (global switch)
+    # When False, tasks will never wait for confirmation; gates are ignored
+    # and sandbox violations are blocked instead of gated.
+    APPROVALS_ENABLED: bool = False
     
     
     model_config = {
