@@ -19,7 +19,7 @@ class TestBasicEndpoints:
         test_assertions.assert_response_success(response, 200)
         
         data = response.json()
-        assert data["message"] == "Claude Web API"
+        assert data["message"] == "Pandar Coder API"
         assert data["version"] == settings.VERSION
         assert data["environment"] == "testing"
         assert data["docs"] == "/docs"
@@ -49,15 +49,9 @@ class TestBasicEndpoints:
     async def test_health_check_database_failure(self, test_client: AsyncClient):
         """测试健康检查 - 数据库故障情况"""
         # Mock数据库连接失败
-        with patch("app.db.database.engine") as mock_engine:
-            mock_conn = AsyncMock()
-            mock_conn.execute = AsyncMock(side_effect=Exception("Database connection failed"))
-            mock_engine.begin = AsyncMock(return_value=mock_conn)
-            mock_engine.__aenter__ = AsyncMock(return_value=mock_conn)
-            mock_engine.__aexit__ = AsyncMock(return_value=None)
-            
+        with patch("app.main.check_db_connection", new_callable=AsyncMock) as mock_check:
+            mock_check.return_value = False
             response = await test_client.get("/health")
-            
             assert response.status_code == 503
             data = response.json()
             assert data["status"] == "degraded"

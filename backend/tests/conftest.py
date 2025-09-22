@@ -1,23 +1,24 @@
 import asyncio
+import os
+import logging
+from typing import AsyncGenerator
+from unittest.mock import patch
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
-from typing import AsyncGenerator
-import logging
-import os
-from unittest.mock import patch
+
+# Ensure test environment is set before importing app/settings
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["DEBUG"] = "false"
+os.environ["LOG_LEVEL"] = "WARNING"
 
 from app.main import app
 from app.db.database import Base, get_db
 from app.core.config import settings
 
-
-# 设置测试环境
-os.environ["ENVIRONMENT"] = "testing"
-os.environ["DEBUG"] = "false"
-os.environ["LOG_LEVEL"] = "WARNING"
 
 # 测试数据库URL
 TEST_DATABASE_URL = "mysql+aiomysql://root:Pa88word@127.0.0.1:13307/claude_web_test"
@@ -83,8 +84,12 @@ async def test_db_session(test_engine) -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
         finally:
-            # 回滚事务，确保测试之间互不影响
-            await transaction.rollback()
+            # 回滚事务（若仍活动），确保测试之间互不影响
+            try:
+                if transaction.is_active:
+                    await transaction.rollback()
+            except Exception:
+                pass
             await session.close()
 
 
@@ -107,6 +112,12 @@ async def test_client(test_db_session: AsyncSession) -> AsyncGenerator[AsyncClie
     
     # 清理依赖覆盖
     app.dependency_overrides.clear()
+
+
+# Alias fixture for compatibility
+@pytest_asyncio.fixture(scope="function")
+async def client(test_client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+    yield test_client
 
 
 @pytest.fixture

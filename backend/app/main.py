@@ -141,7 +141,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 async def root():
     """API根端点"""
     return {
-        "message": "Claude Web API",
+        "message": "Pandar Coder API",
         "version": settings.VERSION,
         "environment": settings.ENVIRONMENT,
         "docs": "/docs",
