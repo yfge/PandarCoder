@@ -1,0 +1,25 @@
+name: claude-web
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - fastapi==0.104.1
+    - uvicorn[standard]==0.24.0
+    - sqlalchemy==2.0.23
+    - alembic==1.13.1
+    - aiomysql==0.2.0
+    - python-jose[cryptography]==3.3.0
+    - passlib[bcrypt]==1.7.4
+    - python-multipart==0.0.6
+    - pydantic[email]==2.5.0
+    - pytest==7.4.3
+    - pytest-asyncio==0.21.1
+    - httpx==0.25.2
+    - python-dotenv==1.0.0
+    - pre-commit==3.6.0
+    - black==23.12.1
+    - flake8==7.0.0
+    - isort==5.13.2
