@@ -58,7 +58,7 @@ class TaskService:
             created_by=user_id,
             status=TaskStatus.PENDING,
             scheduled_at=task_data.scheduled_at,
-            metadata=task_data.metadata or {}
+            task_metadata=task_data.metadata or {}
         )
 
         db.add(task)
@@ -215,10 +215,10 @@ class TaskService:
 
         # 处理元数据更新
         if update_data.metadata is not None:
-            if task.metadata:
-                task.metadata.update(update_data.metadata)
+            if task.task_metadata:
+                task.task_metadata.update(update_data.metadata)
             else:
-                task.metadata = update_data.metadata
+                task.task_metadata = update_data.metadata
 
         task.updated_at = datetime.utcnow()
         await db.commit()

@@ -60,10 +60,14 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"
-    
+
     # Claude API
     CLAUDE_API_KEY: str = ""
     CLAUDE_API_BASE_URL: str = "https://api.anthropic.com"
+
+    # Runner
+    RUNNER_ENABLED: bool = False
+    RUNNER_POLL_INTERVAL: int = 2  # seconds
     
     
     model_config = {

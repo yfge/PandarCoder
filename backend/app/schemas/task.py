@@ -88,7 +88,7 @@ class TaskResponse(TaskBase):
     exit_code: Optional[int] = Field(None, description="退出代码")
     progress: Optional[int] = Field(None, ge=0, le=100, description="进度百分比")
     scheduled_at: Optional[datetime]
-    metadata: Optional[Dict[str, Any]]
+    metadata: Optional[Dict[str, Any]] = Field(None, validation_alias="task_metadata")
     created_by: int = Field(..., description="创建者用户ID")
 
     class Config:

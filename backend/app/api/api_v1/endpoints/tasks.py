@@ -208,9 +208,13 @@ async def execute_task(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """执行任务"""
-    # TODO: Implement task execution
-    raise HTTPException(status_code=501, detail="Task execution not implemented yet")
+    """执行任务（触发运行，交由Runner处理）"""
+    from app.schemas.task import TaskAction
+    action = TaskAction(action="start")
+    result = await TaskService.execute_task_action(db, task_id, current_user.id, action)
+    if not result:
+        raise HTTPException(status_code=404, detail="Task not found or cannot be started")
+    return {"status": result.status.value}
 
 
 @router.post("/{task_id}/action")

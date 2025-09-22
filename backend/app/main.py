@@ -19,6 +19,7 @@ from app.core.middleware import (
 )
 from app.api.api_v1.api import api_router
 from app.db.database import engine, check_db_connection
+from app.services.runner import TaskRunner
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,11 +37,22 @@ async def lifespan(app: FastAPI):
         logging.error(f"Database connection failed: {e}")
         raise DatabaseConnectionError("Failed to connect to database")
     
+    # 启动最小Runner（可选）
+    runner: TaskRunner | None = None
+    if getattr(settings, "RUNNER_ENABLED", False):
+        runner = TaskRunner(poll_interval=settings.RUNNER_POLL_INTERVAL)
+        runner.start()
+        app.state.task_runner = runner
+
     yield
     
     # 关闭时的清理
     logging.info("Shutting down Claude Web API...")
     from app.db.database import close_db_connections
+    # 停止Runner
+    runner = getattr(app.state, "task_runner", None)
+    if runner:
+        await runner.stop()
     await close_db_connections()
 
 app = FastAPI(
