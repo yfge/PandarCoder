@@ -18,12 +18,15 @@ from app.schemas.task import (
     TaskResponse, TaskListResponse, TaskStats, TaskAction,
     BulkTaskAction, BulkTaskResponse, TaskPriority
 )
+from app.services.sandbox import SandboxManager, SandboxError
 
 logger = logging.getLogger(__name__)
 
 
 class TaskService:
     """任务服务类"""
+
+    _sandbox_manager = SandboxManager()
 
     @staticmethod
     async def create_task(
@@ -48,6 +51,18 @@ class TaskService:
                 detail="项目不存在或无权限访问"
             )
 
+        # 处理沙箱元数据
+        try:
+            sandboxed_metadata = TaskService._sandbox_manager.ensure_sandbox_metadata(
+                task_data.command,
+                task_data.metadata,
+            )
+        except SandboxError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc)
+            ) from exc
+
         # 创建任务
         task = Task(
             name=task_data.name,
@@ -58,7 +73,7 @@ class TaskService:
             created_by=user_id,
             status=TaskStatus.PENDING,
             scheduled_at=task_data.scheduled_at,
-            task_metadata=task_data.metadata or {}
+            task_metadata=sandboxed_metadata
         )
 
         db.add(task)
