@@ -78,6 +78,30 @@ class SandboxProfile:
         return metadata
 
 
+@dataclass(frozen=True)
+class SandboxSubmission:
+    """Payload describing a sandbox execution request."""
+
+    command: str
+    agent: str
+    sandbox: Dict[str, Any]
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_payload(self) -> Dict[str, Any]:
+        """Return a JSON-serialisable payload for sandbox execution."""
+
+        payload: Dict[str, Any] = {
+            "command": self.command,
+            "agent": self.agent,
+            "sandbox": copy.deepcopy(self.sandbox),
+        }
+
+        if self.metadata:
+            payload["metadata"] = copy.deepcopy(self.metadata)
+
+        return payload
+
+
 class SandboxManager:
     """Resolve sandbox policies for Codex and Claude agents."""
 
@@ -172,6 +196,60 @@ class SandboxManager:
         agent = self._normalise_agent(metadata.get("agent") if metadata else None, command)
         return agent in self.SUPPORTED_AGENTS
 
+    def build_submission(
+        self,
+        command: str,
+        metadata: Optional[Mapping[str, Any]],
+    ) -> SandboxSubmission:
+        """Create a submission payload for sandbox execution.
+
+        Parameters
+        ----------
+        command:
+            The command that will be executed inside the sandbox.
+        metadata:
+            Task metadata (already validated or raw). ``None`` is treated as an
+            empty mapping.
+
+        Returns
+        -------
+        SandboxSubmission
+            The payload describing the sandbox job.
+
+        Raises
+        ------
+        SandboxError
+            If the task is not eligible for sandbox execution or the
+            configuration is invalid.
+        """
+
+        validated = self.ensure_sandbox_metadata(command, metadata or {})
+        agent = validated.get("agent")
+        if agent not in self.SUPPORTED_AGENTS:
+            raise SandboxError(
+                "Sandbox submission is only supported for codex/claude agents"
+            )
+
+        sandbox_config = validated.get("sandbox")
+        if not isinstance(sandbox_config, Mapping):
+            raise SandboxError("Sandbox configuration is missing")
+
+        if not sandbox_config.get("enabled", True):
+            raise SandboxError("Sandbox execution cannot be disabled")
+
+        extras = {
+            key: copy.deepcopy(value)
+            for key, value in validated.items()
+            if key not in {"sandbox", "agent"}
+        }
+
+        return SandboxSubmission(
+            command=command.strip(),
+            agent=str(agent),
+            sandbox=dict(sandbox_config),
+            metadata=extras,
+        )
+
     def _normalise_agent(self, agent: Optional[str], command: str) -> Optional[str]:
         if agent:
             return str(agent).strip().lower() or None
@@ -242,5 +320,11 @@ class SandboxManager:
                 raise SandboxError("Command contains potentially unsafe pattern")
 
 
-__all__ = ["SandboxManager", "SandboxError", "SandboxProfile", "SandboxLimits"]
+__all__ = [
+    "SandboxManager",
+    "SandboxError",
+    "SandboxProfile",
+    "SandboxLimits",
+    "SandboxSubmission",
+]
 

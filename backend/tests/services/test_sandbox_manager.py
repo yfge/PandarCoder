@@ -2,7 +2,28 @@
 
 import pytest
 
-from app.services.sandbox import SandboxManager, SandboxError
+from app.services.sandbox import SandboxError, SandboxManager
+
+
+def test_build_submission_payload():
+    manager = SandboxManager()
+    metadata = {"agent": "codex", "approval_policy": "auto"}
+
+    submission = manager.build_submission("codex lint", metadata)
+    payload = submission.to_payload()
+
+    assert payload["agent"] == "codex"
+    assert payload["command"] == "codex lint"
+    assert payload["sandbox"]["profile"] == "codex-standard"
+    assert payload["sandbox"]["limits"]["memory_mb"] == 512
+    assert payload["metadata"]["approval_policy"] == "auto"
+
+
+def test_build_submission_requires_supported_agent():
+    manager = SandboxManager()
+
+    with pytest.raises(SandboxError):
+        manager.build_submission("npm test", {"agent": "gemini"})
 
 
 def test_codex_agent_gets_default_profile():

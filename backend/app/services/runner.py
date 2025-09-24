@@ -1,13 +1,14 @@
-"""
-Minimal unattended task runner.
+"""Minimal unattended task runner.
 
-- Polls for tasks to run (pending, or re-run after confirmation)
-- Simulates execution by updating progress/output and completing
+The runner polls the database for tasks that need to be executed and then
+simulates their execution. For agents that require sandboxing (Codex and
+Claude) the runner prepares a submission payload that would normally be sent to
+an isolated execution environment.
 """
 from __future__ import annotations
 
 import asyncio
-import json
+import copy
 import logging
 from datetime import datetime
 from typing import Optional
@@ -18,16 +19,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.db.database import get_db_session
 from app.models.task import Task, TaskStatus
+from app.services.sandbox import SandboxError, SandboxManager
 
 
 logger = logging.getLogger(__name__)
 
 
 class TaskRunner:
-    def __init__(self, poll_interval: int = 2):
+    def __init__(
+        self,
+        poll_interval: int = 2,
+        *,
+        sandbox_manager: SandboxManager | None = None,
+        chunk_delay: float = 0.2,
+    ):
         self.poll_interval = poll_interval
+        self.chunk_delay = chunk_delay
         self._stop_event = asyncio.Event()
         self._task: Optional[asyncio.Task] = None
+        self._sandbox_manager = sandbox_manager or SandboxManager()
 
     def start(self) -> None:
         if self._task is None or self._task.done():
@@ -78,8 +88,18 @@ class TaskRunner:
         return result.scalar_one_or_none()
 
     async def _process_task(self, db: AsyncSession, task: Task) -> None:
-        # Read metadata safely
-        metadata = task.task_metadata or {}
+        raw_metadata = task.task_metadata or {}
+
+        try:
+            metadata = self._sandbox_manager.ensure_sandbox_metadata(
+                task.command,
+                raw_metadata,
+            )
+        except SandboxError as exc:
+            await self._fail_task(db, task, f"Sandbox validation failed: {exc}")
+            return
+
+        task.task_metadata = copy.deepcopy(metadata)
         approval_policy = (metadata.get("approval_policy") or "auto").lower()
         gates = metadata.get("gates") or []
 
@@ -99,10 +119,17 @@ class TaskRunner:
         task.output = (task.output or "") + f"[runner] starting at {now.isoformat()}\n"
         await db.commit()
 
+        if self._sandbox_manager.should_use_sandbox(metadata, task.command):
+            submission_payload = await self._submit_to_sandbox(db, task, metadata)
+            if submission_payload is None:
+                # Submission failed, task already marked as failed
+                return
+            metadata = task.task_metadata or metadata
+
         try:
             # Simulate work in chunks
             for i in range(1, 6):
-                await asyncio.sleep(0.2)
+                await asyncio.sleep(self.chunk_delay)
                 task.progress = i * 20
                 task.output = (task.output or "") + f"chunk {i}/5 done\n"
                 task.updated_at = datetime.utcnow()
@@ -122,13 +149,52 @@ class TaskRunner:
             logger.info("Task %s completed", task.id)
 
         except Exception as e:
-            finished = datetime.utcnow()
-            task.status = TaskStatus.FAILED
-            task.completed_at = finished
-            task.error = str(e)
-            task.exit_code = 1
-            if task.started_at:
-                task.duration = int((finished - task.started_at).total_seconds())
-            task.updated_at = finished
-            await db.commit()
-            logger.exception("Task %s failed: %s", task.id, e)
+            await self._fail_task(db, task, str(e))
+
+    async def _submit_to_sandbox(
+        self,
+        db: AsyncSession,
+        task: Task,
+        metadata: dict,
+    ) -> Optional[dict]:
+        try:
+            submission = self._sandbox_manager.build_submission(
+                task.command,
+                metadata,
+            )
+        except SandboxError as exc:
+            await self._fail_task(db, task, f"Sandbox submission failed: {exc}")
+            return None
+
+        payload = submission.to_payload()
+        runtime_metadata = copy.deepcopy(metadata.get("runtime") or {})
+        runtime_metadata["sandbox_submission"] = payload
+
+        new_metadata = copy.deepcopy(metadata)
+        new_metadata["runtime"] = runtime_metadata
+        task.task_metadata = new_metadata
+        task.output = (task.output or "") + (
+            "[runner] submitted to sandbox "
+            f"profile={payload['sandbox']['profile']}\n"
+        )
+        task.updated_at = datetime.utcnow()
+        await db.commit()
+        logger.info(
+            "Task %s submitted to sandbox (agent=%s, profile=%s)",
+            task.id,
+            payload["agent"],
+            payload["sandbox"]["profile"],
+        )
+        return payload
+
+    async def _fail_task(self, db: AsyncSession, task: Task, message: str) -> None:
+        finished = datetime.utcnow()
+        task.status = TaskStatus.FAILED
+        task.completed_at = finished
+        task.error = message
+        task.exit_code = 1
+        if task.started_at:
+            task.duration = int((finished - task.started_at).total_seconds())
+        task.updated_at = finished
+        await db.commit()
+        logger.exception("Task %s failed: %s", task.id, message)
